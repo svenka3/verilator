@@ -1319,10 +1319,60 @@ class ConstraintExprVisitor final : public VNVisitor {
         nodep->v3warn(CONSTRAINTIGN, "Constraint expression ignored (imperfect distribution)");
         VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
     }
+// AF start
+/*
     void visit(AstConstraintUnique* nodep) override {
         nodep->v3warn(CONSTRAINTIGN, "Constraint expression ignored (unsupported)");
         VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
     }
+    */
+void visit(AstConstraintUnique* nodep) override {
+    for (AstNode* itemp = nodep->rangesp(); itemp; itemp = itemp->nextp()) {
+        if (AstVarRef* varrefp = VN_CAST(itemp, VarRef)) {
+            AstVar* varp = varrefp->varp();
+            
+            // Mark reference so SFormat/SMT logic treats it as a randomized expr
+            varrefp->user1(true);
+            if (AstNodeModule* modp = varrefp->classOrPackagep()) {
+                modp->user1(true);
+            }
+            
+            if (VN_IS(varp->dtypep()->skipRefp(), UnpackArrayDType)) {
+                AstNodeFTask* initTaskp = m_inlineInitTaskp;
+                if (!initTaskp) {
+                    AstNodeModule* classp = varrefp->classOrPackagep();
+                    initTaskp = VN_AS(m_memberMap.findMember(classp, "randomize"), NodeFTask);
+                    if (!initTaskp) initTaskp = VN_AS(m_memberMap.findMember(classp, "new"), NodeFTask);
+                }
+
+                if (initTaskp) {
+                    FileLine* fl = nodep->fileline();
+                    std::string constraintPrefix = "this->__PVT__" + m_genp->name();
+                    
+                    // 1. Manually register the array with the SMT solver (replaces the dummy SV constraint)
+                    // Syntax: write_var(data_ref, bit_width, "smt_name", is_array_flag)
+                    std::string reg_code = constraintPrefix + ".write_var(this->__PVT__" 
+                                           + varp->name() + ", " 
+                                           + std::to_string(varp->width()) + "ULL, \"" 
+                                           + varp->name() + "\", 1ULL);\n";
+                    
+                    initTaskp->addStmtsp(new AstCStmt{fl, reg_code});
+
+                    // 2. Register the unique constraint itself
+                    std::string unique_code = constraintPrefix + ".addUniqueStaticArray(\"" 
+                                              + varp->name() + "\");\n";
+                    
+                    initTaskp->addStmtsp(new AstCStmt{fl, unique_code});
+                }
+            } else {
+                nodep->v3warn(E_UNSUPPORTED, "Constraint unique currently only supported for static arrays: " << varp->name());
+            }
+        }
+    }
+    // Clean up the AST node as it's now converted to C++ statements
+    VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
+}
+// AF end
     void visit(AstConstraintExpr* nodep) override {
         iterateChildren(nodep);
         if (m_wantSingle) {

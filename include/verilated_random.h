@@ -203,6 +203,8 @@ class VlRandomizer VL_NOT_FINAL {
     std::map<std::string, std::shared_ptr<const VlRandomVar>> m_vars;  // Solver-dependent
                                                                        // variables
     ArrayInfoMap m_arr_vars;  // Tracks each element in array structures for iteration
+    std::vector<std::string> m_unique_arrays;
+    std::map<std::string, uint32_t> m_unique_array_sizes;
     const VlQueue<CData>* m_randmodep = nullptr;  // rand_mode state;
     int m_index = 0;  // Internal counter for key generation
 
@@ -412,6 +414,12 @@ public:
         const std::string key = generateKey(name, m_index);
         m_arr_vars[key] = std::make_shared<ArrayInfo>(name, &var, m_index, indices, idxWidths);
         ++m_index;
+    }
+
+    // This is the "Sender" API for the generated code
+    void addUniqueStaticArray(const std::string& name, uint32_t size=10) {
+      m_unique_arrays.push_back(name);
+      m_unique_array_sizes[name] = size;
     }
 
     // Recursively record all elements in an unpacked array
