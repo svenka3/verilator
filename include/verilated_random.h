@@ -417,9 +417,9 @@ public:
     }
 
     // This is the "Sender" API for the generated code
-    void addUniqueStaticArray(const std::string& name, uint32_t size=10) {
-      m_unique_arrays.push_back(name);
-      m_unique_array_sizes[name] = size;
+    void addUniqueStaticArray(const std::string& name, uint32_t size = 10) {
+        m_unique_arrays.push_back(name);
+        m_unique_array_sizes[name] = size;
     }
 
     // Recursively record all elements in an unpacked array

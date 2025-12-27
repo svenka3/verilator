@@ -370,43 +370,38 @@ bool VlRandomizer::next(VlRNG& rngr) {
     // 1. CHANGE: Allow the function to proceed if we have unique constraints
     VL_PRINTF("DEBUG: next.. \n");
     VL_PRINTF("--- STARTING SMT SOLVE DIAGNOSTICS ---\n");
-    
+
     // Check m_vars (Scalars)
     VL_PRINTF("Dumping m_vars (%zu entries):\n", m_vars.size());
-    for (const auto& pair : m_vars) {
-        VL_PRINTF("  SCALAR KEY: '%s'\n", pair.first.c_str());
-    }
+    for (const auto& pair : m_vars) { VL_PRINTF("  SCALAR KEY: '%s'\n", pair.first.c_str()); }
 
     // Check m_arr_vars (Arrays)
     VL_PRINTF("Dumping m_arr_vars (%zu entries):\n", m_arr_vars.size());
-    for (const auto& pair : m_arr_vars) {
-        VL_PRINTF("  ARRAY KEY: '%s'\n", pair.first.c_str());
-    }
+    for (const auto& pair : m_arr_vars) { VL_PRINTF("  ARRAY KEY: '%s'\n", pair.first.c_str()); }
 
-    VL_PRINTF("Target array to find: '%s'\n", 
+    VL_PRINTF("Target array to find: '%s'\n",
               m_unique_arrays.empty() ? "NONE" : m_unique_arrays[0].c_str());
     VL_PRINTF("--- END DIAGNOSTICS ---\n");
 
     // 1. Updated guard to allow unique constraints even if m_vars is empty
     if (m_vars.empty() && m_unique_arrays.empty()) return true;
     for (const std::string& baseName : m_unique_arrays) {
-      auto it = m_vars.find(baseName);
+        auto it = m_vars.find(baseName);
 
-      // Look up the actual size we stored earlier
-      uint32_t size = m_unique_array_sizes[baseName];
+        // Look up the actual size we stored earlier
+        uint32_t size = m_unique_array_sizes[baseName];
 
-      if (it != m_vars.end()) {
-        std::string distinctExpr = "(__Vbv (distinct"; 
-        for (uint32_t i = 0; i < size; ++i) {
-          char hexIdx[12];
-          sprintf(hexIdx, "#x%08x", i);
-          distinctExpr += " (select " + it->first + " " + hexIdx + ")";
+        if (it != m_vars.end()) {
+            std::string distinctExpr = "(__Vbv (distinct";
+            for (uint32_t i = 0; i < size; ++i) {
+                char hexIdx[12];
+                sprintf(hexIdx, "#x%08x", i);
+                distinctExpr += " (select " + it->first + " " + hexIdx + ")";
+            }
+            distinctExpr += "))";
+            m_constraints.push_back(distinctExpr);
         }
-        distinctExpr += "))";
-        m_constraints.push_back(distinctExpr);
-      }
     }
-
 
     std::iostream& os = getSolver();
     if (!os) return false;
@@ -426,7 +421,7 @@ bool VlRandomizer::next(VlRNG& rngr) {
     }
 
     for (const auto& pair : m_arr_vars) {
-      VL_PRINTF("AF_DEBUG: Map contains key: %s\n", pair.first.c_str());
+        VL_PRINTF("AF_DEBUG: Map contains key: %s\n", pair.first.c_str());
     }
 
     for (const std::string& constraint : m_constraints) {
