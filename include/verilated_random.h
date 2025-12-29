@@ -358,7 +358,7 @@ public:
               std::uint32_t randmodeIdx = std::numeric_limits<std::uint32_t>::max()) {
         if (dimension > 0) record_struct_arr(var, name, dimension, {}, {});
     }
-
+    /* AF
     // Register unpacked array of non-struct types
     template <typename T, std::size_t N_Depth>
     typename std::enable_if<!VlContainsCustomStruct<T>::value, void>::type
@@ -372,7 +372,28 @@ public:
             record_arr_table(var, name, dimension, {}, {});
         }
     }
+    */
+    // Register unpacked array of non-struct types
+    template <typename T, std::size_t N_Depth>
+    typename std::enable_if<!VlContainsCustomStruct<T>::value, void>::type
+    write_var(VlUnpacked<T, N_Depth>& var, uint64_t width, const std::string& name, uint32_t dimension,
+              std::uint32_t randmodeIdx = std::numeric_limits<std::uint32_t>::max()) {
+        
+        // Cast them back to int inside if your internal logic needs it
+        int i_width = static_cast<int>(width);
+        int i_dim = static_cast<int>(dimension);
 
+        if (m_vars.find(name) != m_vars.end()) return;
+
+        m_vars[name] = std::make_shared<const VlRandomArrayVarTemplate<VlUnpacked<T, N_Depth>>>(
+            name, i_width, &var, i_dim, randmodeIdx);
+
+        if (i_dim > 0) {
+            m_index = 0;
+            record_arr_table(var, name, i_dim, {}, {});
+        }
+    }
+// AF
     // Register unpacked array of structs
     template <typename T, std::size_t N_Depth>
     typename std::enable_if<VlContainsCustomStruct<T>::value, void>::type
@@ -417,7 +438,7 @@ public:
     }
 
     // This is the "Sender" API for the generated code
-    void addUniqueStaticArray(const std::string& name, uint32_t size=10) {
+    void rand_unique(const std::string& name, uint32_t size) {
       m_unique_arrays.push_back(name);
       m_unique_array_sizes[name] = size;
     }

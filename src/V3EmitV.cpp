@@ -628,7 +628,7 @@ class EmitVBaseVisitorConst VL_NOT_FINAL : public VNVisitorConst {
     */
 void visit(AstCMethodHard* nodep) override {
     // Check if this is our unrolled 'unique' constraint
-    if (nodep->method() == VCMethod::RANDOMIZER_HARD && nodep->pinsp() && nodep->pinsp()->nextp()) {
+    if (nodep->method() == VCMethod::RANDOMIZER_UNIQUE) {
         puts("(assert (distinct");
         for (AstNode* pinp = nodep->pinsp(); pinp; pinp = pinp->nextp()) {
             puts(" ");

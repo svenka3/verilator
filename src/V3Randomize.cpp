@@ -1319,67 +1319,73 @@ class ConstraintExprVisitor final : public VNVisitor {
         nodep->v3warn(CONSTRAINTIGN, "Constraint expression ignored (imperfect distribution)");
         VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
     }
-// AF start
-/*
+    // AF
     void visit(AstConstraintUnique* nodep) override {
-        nodep->v3warn(CONSTRAINTIGN, "Constraint expression ignored (unsupported)");
-        VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
+    FileLine* fl = nodep->fileline();
+
+    // 1. Find the parent class
+    AstClass* classp = nullptr;
+    for (AstNode* p = nodep->backp(); p; p = p->backp()) {
+        if ((classp = VN_CAST(p, Class))) break;
     }
-    */
-void visit(AstConstraintUnique* nodep) override {
+    if (!classp) return;
+
+    // 2. Locate the constructor ("new")
+    AstNodeFTask* initTaskp = VN_AS(m_memberMap.findMember(classp, "new"), NodeFTask);
+    if (!initTaskp) return;
+
+    // 3. Get the Randomizer object (stored in user3p)
+    AstVar* genVarp = VN_AS(classp->user3p(), Var);
+    if (!genVarp) return;
+
+    // --- FIXED: Use rangesp() based on your AstNode definition ---
     for (AstNode* itemp = nodep->rangesp(); itemp; itemp = itemp->nextp()) {
-        if (AstVarRef* varrefp = VN_CAST(itemp, VarRef)) {
-            AstVar* varp = varrefp->varp();
-            
-            // Mark reference so SFormat/SMT logic treats it as a randomized expr
-            varrefp->user1(true);
-            if (AstNodeModule* modp = varrefp->classOrPackagep()) {
-                modp->user1(true);
-            }
-            
-            if (VN_IS(varp->dtypep()->skipRefp(), UnpackArrayDType)) {
-                AstNodeFTask* initTaskp = m_inlineInitTaskp;
-                if (!initTaskp) {
-                    AstNodeModule* classp = varrefp->classOrPackagep();
-                    initTaskp = VN_AS(m_memberMap.findMember(classp, "randomize"), NodeFTask);
-                    if (!initTaskp) initTaskp = VN_AS(m_memberMap.findMember(classp, "new"), NodeFTask);
-                }
+        if (AstVarRef* varRefp = VN_CAST(itemp, VarRef)) {
+            AstVar* varp = varRefp->varp();
 
-                if (initTaskp) {
-                    FileLine* fl = nodep->fileline();
-                    std::string constraintPrefix = "this->__PVT__" + m_genp->name();
-                    
-                    // 1. Manually register the array with the SMT solver (replaces the dummy SV constraint)
-                    // Syntax: write_var(data_ref, bit_width, "smt_name", is_array_flag)
-                    std::string reg_code = constraintPrefix + ".write_var(this->__PVT__" 
-                                           + varp->name() + ", " 
-                                           + std::to_string(varp->width()) + "ULL, \"" 
-                                           + varp->name() + "\", 1ULL);\n";
-                    
-                    initTaskp->addStmtsp(new AstCStmt{fl, reg_code});
+            // --- STEP A: Force SMT Registration (write_var) ---
+            AstCMethodHard* wCallp = new AstCMethodHard{
+                fl, new AstVarRef{fl, genVarp, VAccess::READ},
+                VCMethod::RANDOMIZER_WRITE_VAR
+            };
+            wCallp->addPinsp(new AstVarRef{fl, varp, VAccess::READ});
+            // Fix narrowing: cast width to uint64_t for AstConst
+            wCallp->addPinsp(new AstConst{fl, AstConst::Unsized64{}, 
+                             static_cast<uint64_t>(varp->dtypep()->width())});
+            wCallp->addPinsp(new AstConst{fl, AstConst::String{}, varp->name()});
+            wCallp->addPinsp(new AstConst{fl, 1}); // Dimension
+            
+            wCallp->dtypeSetVoid();
+            initTaskp->addStmtsp(new AstStmtExpr{fl, wCallp});
 
-                    // 2. Register the unique constraint itself
-                    std::string unique_code = constraintPrefix + ".addUniqueStaticArray(\"" 
-                                              + varp->name() + "\");\n";
-                    
-                    initTaskp->addStmtsp(new AstCStmt{fl, unique_code});
-                }
-            } else {
-                nodep->v3warn(E_UNSUPPORTED, "Constraint unique currently only supported for static arrays: " << varp->name());
+            // --- STEP B: Register for Uniqueness (addUniqueStaticArray) ---
+            uint32_t arraySize = 0;
+            if (AstUnpackArrayDType* adtypep = VN_CAST(varp->dtypep(), UnpackArrayDType)) {
+                arraySize = adtypep->elementsConst();
             }
+
+            AstNodeExpr* uPins = new AstConst{fl, AstConst::String{}, varp->name()};
+            uPins->addNext(new AstConst{fl, arraySize});
+
+            AstCMethodHard* uCallp = new AstCMethodHard{
+                fl, new AstVarRef{fl, genVarp, VAccess::READ}, 
+                VCMethod::RANDOMIZER_UNIQUE, uPins
+            };
+            uCallp->dtypep(nodep->findVoidDType());
+            initTaskp->addStmtsp(new AstStmtExpr{fl, uCallp});
         }
     }
-    // Clean up the AST node as it's now converted to C++ statements
-    VL_DO_DANGLING(nodep->unlinkFrBack()->deleteTree(), nodep);
+  nodep->unlinkFrBack(); // This removes it from the class body
+VL_DO_DANGLING(pushDeletep(nodep), nodep);
 }
-// AF end
+    // AF end
     void visit(AstConstraintExpr* nodep) override {
-        iterateChildren(nodep);
-        if (m_wantSingle) {
-            nodep->replaceWith(nodep->exprp()->unlinkFrBack());
-            VL_DO_DANGLING(nodep->deleteTree(), nodep);
-            return;
-        }
+      iterateChildren(nodep);
+      if (m_wantSingle) {
+        nodep->replaceWith(nodep->exprp()->unlinkFrBack());
+        VL_DO_DANGLING(nodep->deleteTree(), nodep);
+        return;
+      }
         // Only hard constraints are currently supported
         AstCMethodHard* const callp = new AstCMethodHard{
             nodep->fileline(),
