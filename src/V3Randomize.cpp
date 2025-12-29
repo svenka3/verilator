@@ -1321,71 +1321,68 @@ class ConstraintExprVisitor final : public VNVisitor {
     }
     // AF
     void visit(AstConstraintUnique* nodep) override {
-    FileLine* fl = nodep->fileline();
+        FileLine* fl = nodep->fileline();
 
-    // 1. Find the parent class
-    AstClass* classp = nullptr;
-    for (AstNode* p = nodep->backp(); p; p = p->backp()) {
-        if ((classp = VN_CAST(p, Class))) break;
-    }
-    if (!classp) return;
-
-    // 2. Locate the constructor ("new")
-    AstNodeFTask* initTaskp = VN_AS(m_memberMap.findMember(classp, "new"), NodeFTask);
-    if (!initTaskp) return;
-
-    // 3. Get the Randomizer object (stored in user3p)
-    AstVar* genVarp = VN_AS(classp->user3p(), Var);
-    if (!genVarp) return;
-
-    // --- FIXED: Use rangesp() based on your AstNode definition ---
-    for (AstNode* itemp = nodep->rangesp(); itemp; itemp = itemp->nextp()) {
-        if (AstVarRef* varRefp = VN_CAST(itemp, VarRef)) {
-            AstVar* varp = varRefp->varp();
-
-            // --- STEP A: Force SMT Registration (write_var) ---
-            AstCMethodHard* wCallp = new AstCMethodHard{
-                fl, new AstVarRef{fl, genVarp, VAccess::READ},
-                VCMethod::RANDOMIZER_WRITE_VAR
-            };
-            wCallp->addPinsp(new AstVarRef{fl, varp, VAccess::READ});
-            // Fix narrowing: cast width to uint64_t for AstConst
-            wCallp->addPinsp(new AstConst{fl, AstConst::Unsized64{}, 
-                             static_cast<uint64_t>(varp->dtypep()->width())});
-            wCallp->addPinsp(new AstConst{fl, AstConst::String{}, varp->name()});
-            wCallp->addPinsp(new AstConst{fl, 1}); // Dimension
-            
-            wCallp->dtypeSetVoid();
-            initTaskp->addStmtsp(new AstStmtExpr{fl, wCallp});
-
-            // --- STEP B: Register for Uniqueness (addUniqueStaticArray) ---
-            uint32_t arraySize = 0;
-            if (AstUnpackArrayDType* adtypep = VN_CAST(varp->dtypep(), UnpackArrayDType)) {
-                arraySize = adtypep->elementsConst();
-            }
-
-            AstNodeExpr* uPins = new AstConst{fl, AstConst::String{}, varp->name()};
-            uPins->addNext(new AstConst{fl, arraySize});
-
-            AstCMethodHard* uCallp = new AstCMethodHard{
-                fl, new AstVarRef{fl, genVarp, VAccess::READ}, 
-                VCMethod::RANDOMIZER_UNIQUE, uPins
-            };
-            uCallp->dtypep(nodep->findVoidDType());
-            initTaskp->addStmtsp(new AstStmtExpr{fl, uCallp});
+        // 1. Find the parent class
+        AstClass* classp = nullptr;
+        for (AstNode* p = nodep->backp(); p; p = p->backp()) {
+            if ((classp = VN_CAST(p, Class))) break;
         }
+        if (!classp) return;
+
+        // 2. Locate the constructor ("new")
+        AstNodeFTask* initTaskp = VN_AS(m_memberMap.findMember(classp, "new"), NodeFTask);
+        if (!initTaskp) return;
+
+        // 3. Get the Randomizer object (stored in user3p)
+        AstVar* genVarp = VN_AS(classp->user3p(), Var);
+        if (!genVarp) return;
+
+        // --- FIXED: Use rangesp() based on your AstNode definition ---
+        for (AstNode* itemp = nodep->rangesp(); itemp; itemp = itemp->nextp()) {
+            if (AstVarRef* varRefp = VN_CAST(itemp, VarRef)) {
+                AstVar* varp = varRefp->varp();
+
+                // --- STEP A: Force SMT Registration (write_var) ---
+                AstCMethodHard* wCallp = new AstCMethodHard{
+                    fl, new AstVarRef{fl, genVarp, VAccess::READ}, VCMethod::RANDOMIZER_WRITE_VAR};
+                wCallp->addPinsp(new AstVarRef{fl, varp, VAccess::READ});
+                // Fix narrowing: cast width to uint64_t for AstConst
+                wCallp->addPinsp(new AstConst{fl, AstConst::Unsized64{},
+                                              static_cast<uint64_t>(varp->dtypep()->width())});
+                wCallp->addPinsp(new AstConst{fl, AstConst::String{}, varp->name()});
+                wCallp->addPinsp(new AstConst{fl, 1});  // Dimension
+
+                wCallp->dtypeSetVoid();
+                initTaskp->addStmtsp(new AstStmtExpr{fl, wCallp});
+
+                // --- STEP B: Register for Uniqueness (addUniqueStaticArray) ---
+                uint32_t arraySize = 0;
+                if (AstUnpackArrayDType* adtypep = VN_CAST(varp->dtypep(), UnpackArrayDType)) {
+                    arraySize = adtypep->elementsConst();
+                }
+
+                AstNodeExpr* uPins = new AstConst{fl, AstConst::String{}, varp->name()};
+                uPins->addNext(new AstConst{fl, arraySize});
+
+                AstCMethodHard* uCallp
+                    = new AstCMethodHard{fl, new AstVarRef{fl, genVarp, VAccess::READ},
+                                         VCMethod::RANDOMIZER_UNIQUE, uPins};
+                uCallp->dtypep(nodep->findVoidDType());
+                initTaskp->addStmtsp(new AstStmtExpr{fl, uCallp});
+            }
+        }
+        nodep->unlinkFrBack();  // This removes it from the class body
+        VL_DO_DANGLING(pushDeletep(nodep), nodep);
     }
-  nodep->unlinkFrBack(); // This removes it from the class body
-VL_DO_DANGLING(pushDeletep(nodep), nodep);
-}
     // AF end
     void visit(AstConstraintExpr* nodep) override {
-      iterateChildren(nodep);
-      if (m_wantSingle) {
-        nodep->replaceWith(nodep->exprp()->unlinkFrBack());
-        VL_DO_DANGLING(nodep->deleteTree(), nodep);
-        return;
-      }
+        iterateChildren(nodep);
+        if (m_wantSingle) {
+            nodep->replaceWith(nodep->exprp()->unlinkFrBack());
+            VL_DO_DANGLING(nodep->deleteTree(), nodep);
+            return;
+        }
         // Only hard constraints are currently supported
         AstCMethodHard* const callp = new AstCMethodHard{
             nodep->fileline(),
