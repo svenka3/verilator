@@ -617,33 +617,33 @@ class EmitVBaseVisitorConst VL_NOT_FINAL : public VNVisitorConst {
         puts(");\n");
     }
 
-// AF start
-/*
-    void visit(AstCMethodHard* nodep) override {
-        iterateConst(nodep->fromp());
-        puts("." + nodep->name() + "(");
-        iterateAndCommaConstNull(nodep->pinsp());
-        puts(")");
-    }
-    */
-void visit(AstCMethodHard* nodep) override {
-    // Check if this is our unrolled 'unique' constraint
-    if (nodep->method() == VCMethod::RANDOMIZER_UNIQUE) {
-        puts("(assert (distinct");
-        for (AstNode* pinp = nodep->pinsp(); pinp; pinp = pinp->nextp()) {
-            puts(" ");
-            iterateConst(pinp); // This prints the (select array index)
+    // AF start
+    /*
+        void visit(AstCMethodHard* nodep) override {
+            iterateConst(nodep->fromp());
+            puts("." + nodep->name() + "(");
+            iterateAndCommaConstNull(nodep->pinsp());
+            puts(")");
         }
-        puts("))\n");
-    } else {
-        // Normal C++ generation for everything else
-        iterateConst(nodep->fromp());
-        puts("." + nodep->name() + "(");
-        iterateAndCommaConstNull(nodep->pinsp());
-        puts(")");
+        */
+    void visit(AstCMethodHard* nodep) override {
+        // Check if this is our unrolled 'unique' constraint
+        if (nodep->method() == VCMethod::RANDOMIZER_UNIQUE) {
+            puts("(assert (distinct");
+            for (AstNode* pinp = nodep->pinsp(); pinp; pinp = pinp->nextp()) {
+                puts(" ");
+                iterateConst(pinp);  // This prints the (select array index)
+            }
+            puts("))\n");
+        } else {
+            // Normal C++ generation for everything else
+            iterateConst(nodep->fromp());
+            puts("." + nodep->name() + "(");
+            iterateAndCommaConstNull(nodep->pinsp());
+            puts(")");
+        }
     }
-}
-// AF end
+    // AF end
     void visit(AstCMethodCall* nodep) override {
         iterateConst(nodep->fromp());
         puts("." + nodep->name() + "(");
