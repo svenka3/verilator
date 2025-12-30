@@ -367,27 +367,6 @@ void VlRandomizer::randomConstraint(std::ostream& os, VlRNG& rngr, int bits) {
 }
 
 bool VlRandomizer::next(VlRNG& rngr) {
-    // 1. CHANGE: Allow the function to proceed if we have unique constraints
-    VL_PRINTF("DEBUG: next.. \n");
-    VL_PRINTF("--- STARTING SMT SOLVE DIAGNOSTICS ---\n");
-    
-    // Check m_vars (Scalars)
-    VL_PRINTF("Dumping m_vars (%zu entries):\n", m_vars.size());
-    for (const auto& pair : m_vars) {
-        VL_PRINTF("  SCALAR KEY: '%s'\n", pair.first.c_str());
-    }
-
-    // Check m_arr_vars (Arrays)
-    VL_PRINTF("Dumping m_arr_vars (%zu entries):\n", m_arr_vars.size());
-    for (const auto& pair : m_arr_vars) {
-        VL_PRINTF("  ARRAY KEY: '%s'\n", pair.first.c_str());
-    }
-
-    VL_PRINTF("Target array to find: '%s'\n", 
-              m_unique_arrays.empty() ? "NONE" : m_unique_arrays[0].c_str());
-    VL_PRINTF("--- END DIAGNOSTICS ---\n");
-
-    // 1. Updated guard to allow unique constraints even if m_vars is empty
     if (m_vars.empty() && m_unique_arrays.empty()) return true;
     for (const std::string& baseName : m_unique_arrays) {
       auto it = m_vars.find(baseName);
@@ -423,10 +402,6 @@ bool VlRandomizer::next(VlRNG& rngr) {
         os << "(declare-fun " << var.first << " () ";
         var.second->emitType(os);
         os << ")\n";
-    }
-
-    for (const auto& pair : m_arr_vars) {
-      VL_PRINTF("AF_DEBUG: Map contains key: %s\n", pair.first.c_str());
     }
 
     for (const std::string& constraint : m_constraints) {
