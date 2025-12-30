@@ -369,23 +369,22 @@ void VlRandomizer::randomConstraint(std::ostream& os, VlRNG& rngr, int bits) {
 bool VlRandomizer::next(VlRNG& rngr) {
     if (m_vars.empty() && m_unique_arrays.empty()) return true;
     for (const std::string& baseName : m_unique_arrays) {
-      auto it = m_vars.find(baseName);
+        auto it = m_vars.find(baseName);
 
-      // Look up the actual size we stored earlier
-      uint32_t size = m_unique_array_sizes[baseName];
+        // Look up the actual size we stored earlier
+        uint32_t size = m_unique_array_sizes[baseName];
 
-      if (it != m_vars.end()) {
-        std::string distinctExpr = "(__Vbv (distinct"; 
-        for (uint32_t i = 0; i < size; ++i) {
-          char hexIdx[12];
-          sprintf(hexIdx, "#x%08x", i);
-          distinctExpr += " (select " + it->first + " " + hexIdx + ")";
+        if (it != m_vars.end()) {
+            std::string distinctExpr = "(__Vbv (distinct";
+            for (uint32_t i = 0; i < size; ++i) {
+                char hexIdx[12];
+                sprintf(hexIdx, "#x%08x", i);
+                distinctExpr += " (select " + it->first + " " + hexIdx + ")";
+            }
+            distinctExpr += "))";
+            m_constraints.push_back(distinctExpr);
         }
-        distinctExpr += "))";
-        m_constraints.push_back(distinctExpr);
-      }
     }
-
 
     std::iostream& os = getSolver();
     if (!os) return false;

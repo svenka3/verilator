@@ -360,9 +360,10 @@ public:
       }
     // Register unpacked array of non-struct types
     template <typename T, std::size_t N_Depth>
-      typename std::enable_if<!VlContainsCustomStruct<T>::value, void>::type
-      write_var(VlUnpacked<T, N_Depth>& var, uint64_t width, const std::string& name, uint32_t dimension,
-          std::uint32_t randmodeIdx = std::numeric_limits<std::uint32_t>::max()) {
+    typename std::enable_if<!VlContainsCustomStruct<T>::value, void>::type
+    write_var(VlUnpacked<T, N_Depth>& var, uint64_t width, const std::string& name,
+              uint32_t dimension,
+              std::uint32_t randmodeIdx = std::numeric_limits<std::uint32_t>::max()) {
 
         // Cast them back to int inside if your internal logic needs it
         int i_width = static_cast<int>(width);
@@ -377,7 +378,7 @@ public:
           m_index = 0;
           record_arr_table(var, name, dimension, {}, {});
         }
-      }
+    }
     // Register unpacked array of structs
     template <typename T, std::size_t N_Depth>
       typename std::enable_if<VlContainsCustomStruct<T>::value, void>::type
@@ -423,8 +424,8 @@ public:
 
     // This is the "Sender" API for the generated code
     void rand_unique(const std::string& name, uint32_t size) {
-      m_unique_arrays.push_back(name);
-      m_unique_array_sizes[name] = size;
+        m_unique_arrays.push_back(name);
+        m_unique_array_sizes[name] = size;
     }
 
     // Recursively record all elements in an unpacked array

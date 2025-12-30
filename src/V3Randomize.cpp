@@ -1385,12 +1385,12 @@ class ConstraintExprVisitor final : public VNVisitor {
       VL_DO_DANGLING(pushDeletep(nodep), nodep);
     }
     void visit(AstConstraintExpr* nodep) override {
-      iterateChildren(nodep);
-      if (m_wantSingle) {
-        nodep->replaceWith(nodep->exprp()->unlinkFrBack());
-        VL_DO_DANGLING(nodep->deleteTree(), nodep);
-        return;
-      }
+        iterateChildren(nodep);
+        if (m_wantSingle) {
+            nodep->replaceWith(nodep->exprp()->unlinkFrBack());
+            VL_DO_DANGLING(nodep->deleteTree(), nodep);
+            return;
+        }
         // Only hard constraints are currently supported
         AstCMethodHard* const callp = new AstCMethodHard{
             nodep->fileline(),
