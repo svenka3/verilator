@@ -623,6 +623,7 @@ class EmitVBaseVisitorConst VL_NOT_FINAL : public VNVisitorConst {
         iterateAndCommaConstNull(nodep->pinsp());
         puts(")");
     }
+
     void visit(AstCMethodCall* nodep) override {
         iterateConst(nodep->fromp());
         puts("." + nodep->name() + "(");
