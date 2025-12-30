@@ -625,9 +625,9 @@ class EmitVBaseVisitorConst VL_NOT_FINAL : public VNVisitorConst {
     }
 
     void visit(AstCMethodCall* nodep) override {
-      iterateConst(nodep->fromp());
-      puts("." + nodep->name() + "(");
-      iterateAndCommaConstNull(nodep->argsp());
+        iterateConst(nodep->fromp());
+        puts("." + nodep->name() + "(");
+        iterateAndCommaConstNull(nodep->argsp());
         puts(")");
     }
 
